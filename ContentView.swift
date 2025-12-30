@@ -10,7 +10,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            // MARK: - Header
+            // MARK: Header
             HStack(alignment: .center) {
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -25,21 +25,23 @@ struct ContentView: View {
 
                 Spacer()
 
-                // MARK: - Album Art (NO GLOW)
-                if let art = audioPlayer.albumArt {
-                    Image(nsImage: art)
+                if let image = audioPlayer.albumArt {
+                    Image(nsImage: image)
                         .resizable()
-                        .interpolation(.high)
-                        .scaledToFill()
-                        .frame(width: 120, height: 120)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .scaledToFit()
+                        .frame(width: 96, height: 96)
+                        .cornerRadius(12)
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(width: 96, height: 96)
                 }
             }
             .padding()
 
             Divider()
 
-            // MARK: - Track List
+            // MARK: Track List
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(audioPlayer.tracks) { track in
@@ -55,7 +57,7 @@ struct ContentView: View {
 
             Divider()
 
-            // MARK: - Controls
+            // MARK: Controls
             HStack {
                 Button("Select Album") {
                     audioPlayer.selectAlbum()
@@ -75,7 +77,7 @@ struct ContentView: View {
             }
             .padding()
         }
-        .frame(minHeight: 520)
+        .frame(minWidth: 720, maxWidth: 900, minHeight: 520)
     }
 }
 
@@ -89,7 +91,6 @@ private struct TrackRow: View {
         GeometryReader { geo in
             HStack(spacing: 12) {
 
-                // Leading indicator
                 ZStack {
                     if audioPlayer.isCurrent(track) && audioPlayer.isPlaying {
                         Image(systemName: "play.fill")
@@ -106,12 +107,12 @@ private struct TrackRow: View {
 
                 Spacer(minLength: 12)
 
-                let available = max(geo.size.width - 240, 80)
+                let available = max(geo.size.width - 240, 120)
                 let relative = longestDuration > 0
                     ? CGFloat(track.duration / longestDuration)
                     : 0
 
-                let totalWidth = max(available * relative, 12)
+                let totalWidth = max(available * relative, 20)
                 let filledWidth = totalWidth * CGFloat(track.progress)
 
                 ZStack(alignment: .leading) {
@@ -120,19 +121,8 @@ private struct TrackRow: View {
                         .frame(width: totalWidth, height: 6)
 
                     Capsule()
-                        .fill(audioPlayer.glowStyle.color.opacity(0.45))
-                        .frame(width: filledWidth, height: 12)
-                        .blur(radius: 6)
-
-                    Capsule()
                         .fill(audioPlayer.glowStyle.color)
                         .frame(width: filledWidth, height: 6)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if audioPlayer.isCurrent(track) {
-                        audioPlayer.glowStyle = audioPlayer.glowStyle.next()
-                    }
                 }
             }
             .padding(.horizontal)
