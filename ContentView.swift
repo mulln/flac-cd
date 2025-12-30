@@ -24,6 +24,23 @@ struct ContentView: View {
                 }
 
                 Spacer()
+
+                if let image = audioPlayer.albumArt {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(1, contentMode: .fit)
+                        .frame(width: 96, height: 96)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(audioPlayer.glowStyle.color.opacity(0.8), lineWidth: 2)
+                                .shadow(color: audioPlayer.glowStyle.color.opacity(0.6), radius: 8)
+                        )
+                        .onTapGesture {
+                            audioPlayer.glowStyle = audioPlayer.glowStyle.next()
+                        }
+                        .animation(.easeInOut(duration: 0.2), value: audioPlayer.glowStyle)
+                }
             }
             .padding()
 
@@ -79,7 +96,6 @@ private struct TrackRow: View {
         GeometryReader { geo in
             HStack(spacing: 12) {
 
-                // Fixed-width leading column (prevents bar jumping)
                 ZStack {
                     if audioPlayer.isCurrent(track) && audioPlayer.isPlaying {
                         Image(systemName: "play.fill")
@@ -105,24 +121,19 @@ private struct TrackRow: View {
                 let filledWidth = totalWidth * CGFloat(track.progress)
 
                 ZStack(alignment: .leading) {
-
-                    // Base track length
                     Capsule()
                         .fill(Color.secondary.opacity(0.3))
                         .frame(width: totalWidth, height: 6)
 
-                    // Glow layer (blurred)
                     Capsule()
                         .fill(audioPlayer.glowStyle.color.opacity(0.45))
                         .frame(width: filledWidth, height: 12)
                         .blur(radius: 6)
 
-                    // Solid progress
                     Capsule()
                         .fill(audioPlayer.glowStyle.color)
                         .frame(width: filledWidth, height: 6)
                 }
-                // 🔥 Glow cycling interaction
                 .contentShape(Rectangle())
                 .onTapGesture {
                     guard audioPlayer.isCurrent(track),
