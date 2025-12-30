@@ -11,9 +11,11 @@ struct ContentView: View {
         VStack(spacing: 0) {
 
             // MARK: - Header
-            HStack(alignment: .top) {
+            HStack(alignment: .center, spacing: 28) {
 
+                // Artist / Album (Balanced)
                 VStack(alignment: .leading, spacing: 8) {
+
                     Text(audioPlayer.artist)
                         .font(.largeTitle)
                         .fontWeight(.bold)
@@ -22,27 +24,31 @@ struct ContentView: View {
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
+                .padding(.top, 6) // 👈 pushes visual center down slightly
 
                 Spacer()
 
+                // Album Art
                 if let image = audioPlayer.albumArt {
                     Image(nsImage: image)
                         .resizable()
+                        .interpolation(.high)
                         .aspectRatio(1, contentMode: .fit)
-                        .frame(width: 96, height: 96)
-                        .cornerRadius(8)
+                        .frame(width: 120, height: 120)
+                        .cornerRadius(12)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(audioPlayer.glowStyle.color.opacity(0.8), lineWidth: 2)
-                                .shadow(color: audioPlayer.glowStyle.color.opacity(0.6), radius: 8)
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(audioPlayer.glowStyle.color, lineWidth: 2)
+                                .shadow(
+                                    color: audioPlayer.glowStyle.color.opacity(0.6),
+                                    radius: 8
+                                )
                         )
-                        .onTapGesture {
-                            audioPlayer.glowStyle = audioPlayer.glowStyle.next()
-                        }
-                        .animation(.easeInOut(duration: 0.2), value: audioPlayer.glowStyle)
                 }
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.vertical, 20) // 👈 adds vertical breathing room
+            .frame(minHeight: 150)
 
             Divider()
 
@@ -96,6 +102,7 @@ private struct TrackRow: View {
         GeometryReader { geo in
             HStack(spacing: 12) {
 
+                // Leading indicator
                 ZStack {
                     if audioPlayer.isCurrent(track) && audioPlayer.isPlaying {
                         Image(systemName: "play.fill")
@@ -136,10 +143,9 @@ private struct TrackRow: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    guard audioPlayer.isCurrent(track),
-                          audioPlayer.isPlaying else { return }
-
-                    audioPlayer.glowStyle = audioPlayer.glowStyle.next()
+                    if audioPlayer.isCurrent(track) {
+                        audioPlayer.glowStyle = audioPlayer.glowStyle.next()
+                    }
                 }
             }
             .padding(.horizontal)
