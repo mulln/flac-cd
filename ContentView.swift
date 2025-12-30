@@ -13,9 +13,8 @@ struct ContentView: View {
             // MARK: - Header
             HStack(alignment: .center, spacing: 28) {
 
-                // Artist / Album (Balanced)
+                // Artist / Album
                 VStack(alignment: .leading, spacing: 8) {
-
                     Text(audioPlayer.artist)
                         .font(.largeTitle)
                         .fontWeight(.bold)
@@ -24,30 +23,43 @@ struct ContentView: View {
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.top, 6) // 👈 pushes visual center down slightly
+                .padding(.top, 6)
 
                 Spacer()
 
-                // Album Art
+                // Album Art with BACKLIT glow
                 if let image = audioPlayer.albumArt {
-                    Image(nsImage: image)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(1, contentMode: .fit)
-                        .frame(width: 120, height: 120)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(audioPlayer.glowStyle.color, lineWidth: 2)
-                                .shadow(
-                                    color: audioPlayer.glowStyle.color.opacity(0.6),
-                                    radius: 8
-                                )
-                        )
+                    ZStack {
+
+                        // Backlight glow layer
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(1, contentMode: .fit)
+                            .frame(width: 128, height: 128)
+                            .blur(radius: 18)
+                            .opacity(0.75)
+                            .scaleEffect(1.05)
+                            .colorMultiply(audioPlayer.glowStyle.color)
+                            .allowsHitTesting(false)
+
+                        // Actual artwork
+                        Image(nsImage: image)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(1, contentMode: .fit)
+                            .frame(width: 120, height: 120)
+                            .cornerRadius(12)
+                            .shadow(
+                                color: Color.black.opacity(0.35),
+                                radius: 8,
+                                y: 4
+                            )
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: audioPlayer.glowStyle)
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 20) // 👈 adds vertical breathing room
+            .padding(.vertical, 20)
             .frame(minHeight: 150)
 
             Divider()
