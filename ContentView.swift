@@ -13,7 +13,7 @@ struct ContentView: View {
             // MARK: - Header
             HStack(alignment: .top) {
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(audioPlayer.artist)
                         .font(.largeTitle)
                         .fontWeight(.bold)
@@ -24,8 +24,6 @@ struct ContentView: View {
                 }
 
                 Spacer()
-
-                GlowCycler(glowStyle: $audioPlayer.glowStyle)
             }
             .padding()
 
@@ -71,33 +69,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Glow Cycler (Compact Vertical Control)
-private struct GlowCycler: View {
-    @Binding var glowStyle: GlowStyle
-
-    var body: some View {
-        VStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(glowStyle.color)
-                .frame(width: 18, height: 18)
-                .shadow(color: glowStyle.color.opacity(0.6), radius: 6)
-
-            Text(glowStyle.label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .padding(6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.primary.opacity(0.06))
-        )
-        .onTapGesture {
-            glowStyle = glowStyle.next()
-        }
-        .animation(.easeInOut(duration: 0.2), value: glowStyle)
-    }
-}
-
 // MARK: - Track Row
 private struct TrackRow: View {
     let track: Track
@@ -134,18 +105,30 @@ private struct TrackRow: View {
                 let filledWidth = totalWidth * CGFloat(track.progress)
 
                 ZStack(alignment: .leading) {
+
+                    // Base track length
                     Capsule()
                         .fill(Color.secondary.opacity(0.3))
                         .frame(width: totalWidth, height: 6)
 
+                    // Glow layer (blurred)
                     Capsule()
                         .fill(audioPlayer.glowStyle.color.opacity(0.45))
                         .frame(width: filledWidth, height: 12)
                         .blur(radius: 6)
 
+                    // Solid progress
                     Capsule()
                         .fill(audioPlayer.glowStyle.color)
                         .frame(width: filledWidth, height: 6)
+                }
+                // 🔥 Glow cycling interaction
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard audioPlayer.isCurrent(track),
+                          audioPlayer.isPlaying else { return }
+
+                    audioPlayer.glowStyle = audioPlayer.glowStyle.next()
                 }
             }
             .padding(.horizontal)
