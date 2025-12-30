@@ -12,7 +12,7 @@ final class AudioPlayer: ObservableObject {
     @Published var artist: String = "—"
     @Published var album: String = "—"
     @Published var glowStyle: GlowStyle = .alpine
-    @Published var albumArt: NSImage?
+    @Published var albumArt: NSImage?   // ✅ FIX: backing property
 
     // MARK: - Private
     private var player: AVAudioPlayer?
@@ -32,55 +32,47 @@ final class AudioPlayer: ObservableObject {
     private func loadAlbum(from folder: URL) {
         stop()
 
-        tracks = AlbumLoader.loadAlbum(from: folder).map {
-            Track(
-                url: $0.url,
-                trackNumber: $0.trackNumber,
-                title: $0.title,
-                duration: $0.duration,
-                progress: 0
-            )
+        tracks = AlbumLoader.loadAlbum(from: folder)
+
+        let parsed = AlbumLoader.parseAlbumFolder(folder.lastPathComponent)
+
+        artist = parsed.artist
+            ?? folder.deletingLastPathComponent().lastPathComponent
+
+        if let year = parsed.year {
+            album = "\(parsed.album) (\(year))"
+        } else {
+            album = parsed.album
         }
 
-        album = folder.lastPathComponent
-        artist = folder.deletingLastPathComponent().lastPathComponent
-        currentTrack = nil
-
+        // ✅ LOAD ALBUM ART
         albumArt = loadAlbumArt(from: folder)
+
+        currentTrack = nil
     }
 
     // MARK: - Album Art Loading
     private func loadAlbumArt(from folder: URL) -> NSImage? {
+
         let fm = FileManager.default
 
-        // 1️⃣ Look for image files in folder
-        if let urls = try? fm.contentsOfDirectory(
-            at: folder,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ) {
-            let image = urls
-                .filter {
-                    ["png", "jpg", "jpeg"].contains($0.pathExtension.lowercased())
-                }
-                .sorted { $0.lastPathComponent < $1.lastPathComponent }
-                .first
-                .flatMap { NSImage(contentsOf: $0) }
-
-            if image != nil {
-                return image
+        // 1️⃣ Folder image (preferred)
+        if let urls = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
+            if let imageURL = urls.first(where: {
+                ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased())
+            }) {
+                return NSImage(contentsOf: imageURL)
             }
         }
 
-        // 2️⃣ Fallback: embedded artwork from first track
-        guard let first = tracks.first else { return nil }
-
-        let asset = AVURLAsset(url: first.url)
-        for item in asset.commonMetadata {
-            if item.commonKey == .commonKeyArtwork,
-               let data = item.dataValue,
-               let image = NSImage(data: data) {
-                return image
+        // 2️⃣ Embedded art fallback (first track)
+        if let firstTrack = tracks.first {
+            let asset = AVURLAsset(url: firstTrack.url)
+            for item in asset.commonMetadata {
+                if item.commonKey?.rawValue == "artwork",
+                   let data = item.dataValue {
+                    return NSImage(data: data)
+                }
             }
         }
 
@@ -100,6 +92,12 @@ final class AudioPlayer: ObservableObject {
         if player == nil || player?.url != track.url {
             player = try? AVAudioPlayer(contentsOf: track.url)
             player?.prepareToPlay()
+
+            if let idx = tracks.firstIndex(where: { $0.id == track.id }),
+               let p = player,
+               tracks[idx].duration <= 0 {
+                tracks[idx].duration = p.duration
+            }
         }
 
         player?.play()
