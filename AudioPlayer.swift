@@ -12,6 +12,7 @@ final class AudioPlayer: ObservableObject {
     @Published var artist: String = "—"
     @Published var album: String = "—"
     @Published var glowStyle: GlowStyle = .alpine
+    @Published var albumArt: NSImage?
 
     // MARK: - Private
     private var player: AVAudioPlayer?
@@ -31,15 +32,59 @@ final class AudioPlayer: ObservableObject {
     private func loadAlbum(from folder: URL) {
         stop()
 
-        // Use AlbumLoader (so your parsing/cleanup logic is centralized)
-        let loaded = AlbumLoader.loadAlbum(from: folder)
-        tracks = loaded.map { t in
-            Track(url: t.url, trackNumber: t.trackNumber, title: t.title, duration: t.duration, progress: 0.0)
+        tracks = AlbumLoader.loadAlbum(from: folder).map {
+            Track(
+                url: $0.url,
+                trackNumber: $0.trackNumber,
+                title: $0.title,
+                duration: $0.duration,
+                progress: 0
+            )
         }
 
         album = folder.lastPathComponent
         artist = folder.deletingLastPathComponent().lastPathComponent
         currentTrack = nil
+
+        albumArt = loadAlbumArt(from: folder)
+    }
+
+    // MARK: - Album Art Loading
+    private func loadAlbumArt(from folder: URL) -> NSImage? {
+        let fm = FileManager.default
+
+        // 1️⃣ Look for image files in folder
+        if let urls = try? fm.contentsOfDirectory(
+            at: folder,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) {
+            let image = urls
+                .filter {
+                    ["png", "jpg", "jpeg"].contains($0.pathExtension.lowercased())
+                }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                .first
+                .flatMap { NSImage(contentsOf: $0) }
+
+            if image != nil {
+                return image
+            }
+        }
+
+        // 2️⃣ Fallback: embedded artwork from first track
+        guard let first = tracks.first else { return nil }
+
+        let asset = AVURLAsset(url: first.url)
+        for item in asset.commonMetadata {
+            if item.commonKey == .commonKeyArtwork,
+               let data = item.dataValue,
+               let image = NSImage(data: data) {
+                return image
+            }
+        }
+
+        return nil
     }
 
     // MARK: - Playback
@@ -55,13 +100,6 @@ final class AudioPlayer: ObservableObject {
         if player == nil || player?.url != track.url {
             player = try? AVAudioPlayer(contentsOf: track.url)
             player?.prepareToPlay()
-
-            // If we don't already have duration, update it from the loaded player (non-deprecated)
-            if let idx = tracks.firstIndex(where: { $0.id == track.id }),
-               let p = player,
-               tracks[idx].duration <= 0 {
-                tracks[idx].duration = p.duration
-            }
         }
 
         player?.play()
@@ -101,7 +139,6 @@ final class AudioPlayer: ObservableObject {
             let progress = player.currentTime / duration
             self.tracks[index].progress = min(progress, 1.0)
 
-            // Optional: auto-advance when track completes
             if progress >= 0.999 {
                 self.advanceToNextTrack()
             }
@@ -119,14 +156,11 @@ final class AudioPlayer: ObservableObject {
 
         let nextIndex = idx + 1
         guard nextIndex < tracks.count else {
-            // Album finished
             pause()
             return
         }
 
-        // Mark finished track fully filled
         tracks[idx].progress = 1.0
-
         currentTrack = tracks[nextIndex]
         player = nil
         play()
